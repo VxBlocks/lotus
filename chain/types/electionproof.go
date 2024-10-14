@@ -3,9 +3,9 @@ package types
 import (
 	"math/big"
 
-	"golang.org/x/crypto/blake2b"
+	"github.com/minio/blake2b-simd"
 
-	"github.com/filecoin-project/lotus/build/buildconstants"
+	"github.com/filecoin-project/lotus/build"
 )
 
 type ElectionProof struct {
@@ -100,14 +100,14 @@ func polyval(p []*big.Int, x *big.Int) *big.Int {
 
 // computes lambda in Q.256
 func lambda(power, totalPower *big.Int) *big.Int {
-	blocksPerEpoch := NewInt(buildconstants.BlocksPerEpoch)
+	blocksPerEpoch := NewInt(build.BlocksPerEpoch)
 	lam := new(big.Int).Mul(power, blocksPerEpoch.Int)   // Q.0
 	lam = lam.Lsh(lam, precision)                        // Q.256
 	lam = lam.Div(lam /* Q.256 */, totalPower /* Q.0 */) // Q.256
 	return lam
 }
 
-var MaxWinCount = 3 * int64(buildconstants.BlocksPerEpoch)
+var MaxWinCount = 3 * int64(build.BlocksPerEpoch)
 
 type poiss struct {
 	lam  *big.Int

@@ -3,12 +3,10 @@ package kit
 import (
 	"math"
 
-	"github.com/filecoin-project/go-f3/manifest"
 	"github.com/filecoin-project/go-state-types/abi"
 	"github.com/filecoin-project/go-state-types/big"
 
-	"github.com/filecoin-project/lotus/build/buildconstants"
-	"github.com/filecoin-project/lotus/chain/lf3"
+	"github.com/filecoin-project/lotus/build"
 	"github.com/filecoin-project/lotus/chain/types"
 	"github.com/filecoin-project/lotus/chain/wallet/key"
 	"github.com/filecoin-project/lotus/node"
@@ -58,7 +56,7 @@ type nodeOpts struct {
 
 // DefaultNodeOpts are the default options that will be applied to test nodes.
 var DefaultNodeOpts = nodeOpts{
-	balance:    big.Mul(big.NewInt(100000000), types.NewInt(buildconstants.FilecoinPrecision)),
+	balance:    big.Mul(big.NewInt(100000000), types.NewInt(build.FilecoinPrecision)),
 	sectors:    DefaultPresealsPerBootstrapMiner,
 	sectorSize: abi.SectorSize(2 << 10), // 2KiB.
 
@@ -90,6 +88,13 @@ func WithAllSubsystems() NodeOpt {
 		opts.subsystems = opts.subsystems.Add(SSealing)
 		opts.subsystems = opts.subsystems.Add(SSectorStorage)
 
+		return nil
+	}
+}
+
+func WithSectorIndexDB() NodeOpt {
+	return func(opts *nodeOpts) error {
+		opts.subsystems = opts.subsystems.Add(SHarmony)
 		return nil
 	}
 }
@@ -210,14 +215,6 @@ func MutateSealingConfig(mut func(sc *config.SealingConfig)) NodeOpt {
 		})))
 }
 
-func F3Enabled(cfg *lf3.Config) NodeOpt {
-	return ConstructorOpts(
-		node.Override(new(*lf3.Config), cfg),
-		node.Override(new(manifest.ManifestProvider), lf3.NewManifestProvider),
-		node.Override(new(*lf3.F3), lf3.New),
-	)
-}
-
 // SectorSize sets the sector size for this miner. Start() will populate the
 // corresponding proof type depending on the network version (genesis network
 // version if the Ensemble is unstarted, or the current network version
@@ -305,13 +302,6 @@ func SplitstoreDisable() NodeOpt {
 func WithEthRPC() NodeOpt {
 	return WithCfgOpt(func(cfg *config.FullNode) error {
 		cfg.Fevm.EnableEthRPC = true
-		return nil
-	})
-}
-
-func DisableETHBlockCache() NodeOpt {
-	return WithCfgOpt(func(cfg *config.FullNode) error {
-		cfg.Fevm.EthBlkCacheSize = 0
 		return nil
 	})
 }

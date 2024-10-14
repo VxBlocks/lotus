@@ -27,7 +27,7 @@ import (
 	"github.com/filecoin-project/lotus/storage/sealer/storiface"
 )
 
-// TestPieceProviderSimpleNoRemoteWorker verifies that the ReadPiece method works correctly
+// TestPieceProviderReadPiece verifies that the ReadPiece method works correctly
 // only uses miner and does NOT use any remote worker.
 func TestPieceProviderSimpleNoRemoteWorker(t *testing.T) {
 	// Set up sector storage manager

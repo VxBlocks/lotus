@@ -31,7 +31,7 @@ const (
 	metadataTraceContext = "traceContext"
 )
 
-// GetAPIInfoMulti returns the API endpoints to use for the specified kind of repo.
+// GetAPIInfo returns the API endpoint to use for the specified kind of repo.
 //
 // The order of precedence is as follows:
 //
@@ -229,7 +229,7 @@ func GetFullNodeAPI(ctx *cli.Context) (v0api.FullNode, jsonrpc.ClientCloser, err
 
 type contextKey string
 
-// OnSingleNode is not thread safe
+// Not thread safe
 func OnSingleNode(ctx context.Context) context.Context {
 	return context.WithValue(ctx, contextKey("retry-node"), new(*int))
 }

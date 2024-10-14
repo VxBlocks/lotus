@@ -1,6 +1,7 @@
 package paths
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -12,12 +13,11 @@ import (
 	gopath "path"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
 
-	"github.com/hashicorp/go-multierror"
-	"github.com/ipfs/go-cid"
 	"golang.org/x/xerrors"
 
 	"github.com/filecoin-project/go-state-types/abi"
@@ -586,6 +586,70 @@ func (r *Remote) CheckIsUnsealed(ctx context.Context, s storiface.SectorRef, off
 	return false, nil
 }
 
+// TODO boost retrieval car file
+func (r *Remote) getRemoteCarUrls(ctx context.Context) ([]string, string, bool) {
+	urls := make([]string, 0)
+	wEnv := os.Getenv("CAR_SERVER_URLS")
+	if len(wEnv) > 0 {
+		carUrls := strings.Split(wEnv, ";")
+		for _, carUrl := range carUrls {
+			if len(carUrl) > 0 {
+				urls = append(urls, carUrl)
+			}
+		}
+	}
+
+	if len(urls) > 0 {
+		pieceCid, _ := ctx.Value("pieceCid").(string)
+		return urls, pieceCid, true
+	}
+
+	return nil, "", false
+}
+
+// TODO boost retrieval car file
+func (r *Remote) checkRemoteCarFile(ctx context.Context, carUrl string) (int64, error) {
+	req, err := http.NewRequest("GET", carUrl, nil)
+	if err != nil {
+		return 0, xerrors.Errorf("request: %w", err)
+	}
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return 0, xerrors.Errorf("do request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		return 0, xerrors.Errorf("non-200 code: %d", resp.StatusCode)
+	}
+
+	result, err := io.ReadAll(resp.Body)
+	if resp == nil || resp.StatusCode != 200 {
+		if resp != nil {
+			return 0, xerrors.Errorf("err: %s", string(result))
+		} else {
+			return 0, xerrors.Errorf("non-200 code")
+		}
+	}
+
+	lengthMap := map[string]int64{}
+	if err := json.Unmarshal(result, &lengthMap); err != nil {
+		log.Errorf("json marshal err: %v", err)
+	}
+
+	return lengthMap["length"], nil
+}
+
+// TODO boost retrieval car file
+type LengthError struct {
+	Length int64
+}
+
+func (e *LengthError) Error() string {
+	return fmt.Sprintf("%d", e.Length)
+}
+
 // Reader returns a reader for an unsealed piece at the given offset in the given sector.
 // If the Miner has the unsealed piece locally, it will return a reader that reads from the local copy.
 // If the Miner does NOT have the unsealed piece locally, it will query all workers that have the unsealed sector file
@@ -596,6 +660,53 @@ func (r *Remote) CheckIsUnsealed(ctx context.Context, s storiface.SectorRef, off
 // 2. no worker(local worker included) has the unsealed piece in their unsealed sector file.
 // Will return a nil reader and a nil error in such a case.
 func (r *Remote) Reader(ctx context.Context, s storiface.SectorRef, offset, size abi.PaddedPieceSize) (func(startOffsetAligned, endOffsetAligned storiface.PaddedByteIndex) (io.ReadCloser, error), error) {
+
+	// TODO boost retrieval car file
+	if carUrls, pieceCid, result := r.getRemoteCarUrls(ctx); result {
+		// Get piece cid from context
+		if pieceCid == "" || len(pieceCid) == 0 {
+			return nil, fmt.Errorf("reader car sectorId=%s, not found pieceCid", s.ID)
+		}
+
+		var err error
+		for _, url := range carUrls {
+			checkCarUrl := fmt.Sprintf("http://%s/remote/carCheck/%s.car", url, pieceCid)
+			length, err := r.checkRemoteCarFile(ctx, checkCarUrl)
+			if err != nil {
+				log.Debugf("reader from remote", "url", checkCarUrl, "error", err)
+				continue
+			}
+
+			if length > 0 {
+				return func(startOffsetAligned, endOffsetAligned storiface.PaddedByteIndex) (io.ReadCloser, error) {
+					startOffset, _ := strconv.ParseInt(fmt.Sprintf("%d", offset+abi.PaddedPieceSize(startOffsetAligned)), 10, 64)
+					endOffset, _ := strconv.ParseInt(fmt.Sprintf("%d", offset+abi.PaddedPieceSize(endOffsetAligned)), 10, 64)
+					if length <= startOffset {
+						bufferSize := endOffset - startOffset
+						zeroByteBuffer := bytes.NewBuffer(make([]byte, bufferSize))
+						limitedReader := io.LimitReader(zeroByteBuffer, int64(bufferSize))
+						return io.NopCloser(limitedReader), nil
+					}
+
+					// readRemote fetches a reader that we can use to read the unsealed piece from the remote worker.
+					// It uses a ranged HTTP query to ensure we ONLY read the unsealed piece and not the entire unsealed file.
+					remoteCarUrl := fmt.Sprintf("http://%s/remote/carRange/%s.car", url, pieceCid)
+					rd, err := r.readRemote(ctx, remoteCarUrl, offset+abi.PaddedPieceSize(startOffsetAligned), offset+abi.PaddedPieceSize(endOffsetAligned))
+					if err != nil {
+						log.Warnw("reader from remote", "url", remoteCarUrl, "error", err)
+						return nil, err
+					}
+
+					return rd, err
+				}, &LengthError{Length: length}
+			}
+		}
+
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	ft := storiface.FTUnsealed
 
 	// check if we have the unsealed sector file locally

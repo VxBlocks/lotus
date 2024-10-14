@@ -13,8 +13,6 @@ import (
 
 	"github.com/icza/backscanner"
 	logging "github.com/ipfs/go-log/v2"
-
-	"github.com/filecoin-project/lotus/build/buildconstants"
 )
 
 var (
@@ -98,7 +96,7 @@ func writeAppVersion(buildVersion BuildVersion, file string) {
 	}
 	defer f.Close() //nolint:errcheck
 
-	versionString := []byte(string(buildVersion) + buildconstants.BuildTypeString() + CurrentCommit + "\n")
+	versionString := []byte(string(buildVersion) + BuildTypeString() + CurrentCommit + "\n")
 	if _, err := f.Write(versionString); err != nil {
 		panicLog.Error(err.Error())
 	}

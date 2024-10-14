@@ -21,9 +21,6 @@ import (
 	"github.com/filecoin-project/lotus/chain/actors"
 	"github.com/filecoin-project/lotus/lib/sigs"
 	_ "github.com/filecoin-project/lotus/lib/sigs/delegated"
-
-	// needed for actors.GetActorCodeID() to work
-	_ "github.com/filecoin-project/lotus/build"
 )
 
 type TxTestcase struct {

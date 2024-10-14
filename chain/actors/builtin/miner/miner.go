@@ -58,9 +58,6 @@ func Load(store adt.Store, act *types.Actor) (State, error) {
 		case actorstypes.Version14:
 			return load14(store, act.Head)
 
-		case actorstypes.Version15:
-			return load15(store, act.Head)
-
 		}
 	}
 
@@ -136,9 +133,6 @@ func MakeState(store adt.Store, av actors.Version) (State, error) {
 
 	case actors.Version14:
 		return make14(store)
-
-	case actors.Version15:
-		return make15(store)
 
 	}
 	return nil, xerrors.Errorf("unknown actor version %d", av)
@@ -335,7 +329,6 @@ type SectorActivationManifest = minertypes13.SectorActivationManifest
 type ProveReplicaUpdates3Params = minertypes13.ProveReplicaUpdates3Params
 type SectorUpdateManifest = minertypes13.SectorUpdateManifest
 type SectorOnChainInfoFlags = minertypes13.SectorOnChainInfoFlags
-type VerifiedAllocationKey = minertypes13.VerifiedAllocationKey
 
 var QAPowerMax = minertypes.QAPowerMax
 
@@ -405,6 +398,5 @@ func AllCodes() []cid.Cid {
 		(&state12{}).Code(),
 		(&state13{}).Code(),
 		(&state14{}).Code(),
-		(&state15{}).Code(),
 	}
 }

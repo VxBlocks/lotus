@@ -5,9 +5,10 @@ import (
 	"context"
 	"errors"
 	"io"
+	"os"
+	"strings"
 	"sync"
 
-	"github.com/ipfs/go-cid"
 	pool "github.com/libp2p/go-buffer-pool"
 	"golang.org/x/xerrors"
 
@@ -49,9 +50,35 @@ func NewPieceProvider(storage *paths.Remote, index paths.SectorIndex, uns Unseal
 	}
 }
 
+// TODO boost retrieval car file
+func (p *pieceProvider) getRemoteCarUrls() bool {
+	wEnv := os.Getenv("CAR_SERVER_URLS")
+	if len(wEnv) > 0 {
+		urls := make([]string, 0)
+		carUrls := strings.Split(wEnv, ";")
+		for _, carUrl := range carUrls {
+			if len(carUrl) > 0 {
+				urls = append(urls, carUrl)
+			}
+		}
+
+		if len(urls) > 0 {
+			return true
+		}
+	}
+
+	return false
+}
+
 // IsUnsealed checks if we have the unsealed piece at the given offset in an already
 // existing unsealed file either locally or on any of the workers.
 func (p *pieceProvider) IsUnsealed(ctx context.Context, sector storiface.SectorRef, offset storiface.UnpaddedByteIndex, size abi.UnpaddedPieceSize) (bool, error) {
+
+	// TODO boost retrieval car file
+	if p.getRemoteCarUrls() {
+		return true, nil
+	}
+
 	if err := offset.Valid(); err != nil {
 		return false, xerrors.Errorf("offset is not valid: %w", err)
 	}
@@ -81,14 +108,25 @@ func (p *pieceProvider) tryReadUnsealedPiece(ctx context.Context, pc cid.Cid, se
 		return nil, xerrors.Errorf("acquiring read sector lock: %w", err)
 	}
 
+	// TODO boost retrieval car file
+	piece_size := pieceSize
+
 	// Reader returns a reader getter for an unsealed piece at the given offset in the given sector.
 	// The returned reader will be nil if none of the workers has an unsealed sector file containing
 	// the unsealed piece.
 	readerGetter, err := p.storage.Reader(ctx, sector, abi.PaddedPieceSize(pieceOffset.Padded()), pieceSize.Padded())
 	if err != nil {
-		cancel()
-		log.Debugf("did not get storage reader;sector=%+v, err:%s", sector.ID, err)
-		return nil, err
+		// TODO boost retrieval car file
+		var le *paths.LengthError
+		if errors.As(err, &le) {
+			if abi.UnpaddedPieceSize(le.Length) > pieceSize {
+				piece_size = abi.UnpaddedPieceSize(le.Length)
+			}
+		} else {
+			cancel()
+			log.Debugf("did not get storage reader;sector=%+v, err:%s", sector.ID, err)
+			return nil, err
+		}
 	}
 	if readerGetter == nil {
 		cancel()
@@ -97,6 +135,24 @@ func (p *pieceProvider) tryReadUnsealedPiece(ctx context.Context, pc cid.Cid, se
 
 	pr, err := (&pieceReader{
 		getReader: func(startOffset, readSize uint64) (io.ReadCloser, error) {
+			// TODO boost retrieval car file
+			if p.getRemoteCarUrls() {
+				r, err := readerGetter(storiface.PaddedByteIndex(startOffset), storiface.PaddedByteIndex(readSize))
+				if err != nil {
+					return nil, xerrors.Errorf("getting reader at +%d: %w", startOffset, err)
+				}
+
+				return struct {
+					io.Reader
+					io.Closer
+				}{
+					Reader: bufio.NewReaderSize(r, 127),
+					Closer: funcCloser(func() error {
+						return r.Close()
+					}),
+				}, nil
+			}
+
 			// The request is for unpadded bytes, at any offset.
 			// storage.Reader readers give us fr32-padded bytes, so we need to
 			// do the unpadding here.
@@ -143,7 +199,7 @@ func (p *pieceProvider) tryReadUnsealedPiece(ctx context.Context, pc cid.Cid, se
 				}),
 			}, nil
 		},
-		len:      pieceSize,
+		len:      piece_size,
 		onClose:  cancel,
 		pieceCid: pc,
 	}).init(ctx)
@@ -170,16 +226,19 @@ var _ io.Closer = funcCloser(nil)
 // the returned boolean parameter will be set to true.
 // If we have an existing unsealed file containing the given piece, the returned boolean will be set to false.
 func (p *pieceProvider) ReadPiece(ctx context.Context, sector storiface.SectorRef, pieceOffset storiface.UnpaddedByteIndex, size abi.UnpaddedPieceSize, ticket abi.SealRandomness, unsealed cid.Cid) (storiface.Reader, bool, error) {
-	if err := pieceOffset.Valid(); err != nil {
-		return nil, false, xerrors.Errorf("pieceOffset is not valid: %w", err)
-	}
-	if err := size.Validate(); err != nil {
-		return nil, false, xerrors.Errorf("size is not a valid piece size: %w", err)
+	// TODO boost retrieval car file
+	if !p.getRemoteCarUrls() {
+		if err := pieceOffset.Valid(); err != nil {
+			return nil, false, xerrors.Errorf("pieceOffset is not valid: %w", err)
+		}
+		if err := size.Validate(); err != nil {
+			return nil, false, xerrors.Errorf("size is not a valid piece size: %w", err)
+		}
 	}
 
 	r, err := p.tryReadUnsealedPiece(ctx, unsealed, sector, pieceOffset, size)
 
-	if errors.Is(err, storiface.ErrSectorNotFound) {
+	if xerrors.Is(err, storiface.ErrSectorNotFound) {
 		log.Debugf("no unsealed sector file with unsealed piece, sector=%+v, pieceOffset=%d, size=%d", sector, pieceOffset, size)
 		err = nil
 	}

@@ -124,7 +124,7 @@ func (stage *PreCommitStage) PackMessages(ctx context.Context, bb *blockbuilder.
 	}
 }
 
-// packMiner packs count pre-commits for the given miner.
+// packPreCommitsMiner packs count pre-commits for the given miner.
 func (stage *PreCommitStage) packMiner(
 	ctx context.Context, bb *blockbuilder.BlockBuilder,
 	minerAddr address.Address, count int,

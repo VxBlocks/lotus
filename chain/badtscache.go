@@ -6,7 +6,7 @@ import (
 	"github.com/hashicorp/golang-lru/arc/v2"
 	"github.com/ipfs/go-cid"
 
-	"github.com/filecoin-project/lotus/build/buildconstants"
+	"github.com/filecoin-project/lotus/build"
 )
 
 type BadBlockCache struct {
@@ -43,7 +43,7 @@ func (bbr BadBlockReason) String() string {
 }
 
 func NewBadBlockCache() *BadBlockCache {
-	cache, err := arc.NewARC[cid.Cid, BadBlockReason](buildconstants.BadBlockCacheSize)
+	cache, err := arc.NewARC[cid.Cid, BadBlockReason](build.BadBlockCacheSize)
 	if err != nil {
 		panic(err) // ok
 	}

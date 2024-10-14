@@ -114,7 +114,7 @@ func (nd *Node) LoadSim(ctx context.Context, name string) (*Simulation, error) {
 	return sim, nil
 }
 
-// CreateSim creates a new simulation.
+// Create creates a new simulation.
 //
 // - This will fail if a simulation already exists with the given name.
 // - Num must not contain a '/'.

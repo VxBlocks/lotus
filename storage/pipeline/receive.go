@@ -3,7 +3,6 @@ package sealing
 import (
 	"bytes"
 	"context"
-	"errors"
 	"net/url"
 
 	"github.com/ipfs/go-cid"
@@ -63,7 +62,7 @@ func (m *Sealing) checkSectorMeta(ctx context.Context, meta api.RemoteSectorMeta
 	{
 		// initial sanity check, doesn't prevent races
 		_, err := m.GetSectorInfo(meta.Sector.Number)
-		if err != nil && !errors.Is(err, datastore.ErrNotFound) {
+		if err != nil && !xerrors.Is(err, datastore.ErrNotFound) {
 			return SectorInfo{}, err
 		}
 		if err == nil {

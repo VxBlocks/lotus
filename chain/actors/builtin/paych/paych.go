@@ -59,9 +59,6 @@ func Load(store adt.Store, act *types.Actor) (State, error) {
 		case actorstypes.Version14:
 			return load14(store, act.Head)
 
-		case actorstypes.Version15:
-			return load15(store, act.Head)
-
 		}
 	}
 
@@ -188,9 +185,6 @@ func Message(version actorstypes.Version, from address.Address) MessageBuilder {
 	case actorstypes.Version14:
 		return message14{from}
 
-	case actorstypes.Version15:
-		return message15{from}
-
 	default:
 		panic(fmt.Sprintf("unsupported actors version: %d", version))
 	}
@@ -235,6 +229,5 @@ func AllCodes() []cid.Cid {
 		(&state12{}).Code(),
 		(&state13{}).Code(),
 		(&state14{}).Code(),
-		(&state15{}).Code(),
 	}
 }

@@ -11,7 +11,7 @@ import (
 
 	logging "github.com/ipfs/go-log/v2"
 
-	"github.com/filecoin-project/lotus/build/buildconstants"
+	"github.com/filecoin-project/lotus/build"
 )
 
 var log = logging.Logger("ulimit")
@@ -65,7 +65,7 @@ func ManageFdLimit() (changed bool, newLimit uint64, err error) {
 		return false, 0, nil
 	}
 
-	targetLimit := buildconstants.DefaultFDLimit
+	targetLimit := build.DefaultFDLimit
 	userLimit := userMaxFDs()
 	if userLimit > 0 {
 		targetLimit = userLimit

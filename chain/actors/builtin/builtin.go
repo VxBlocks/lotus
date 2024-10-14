@@ -27,7 +27,6 @@ var InitActorAddr = builtin.InitActorAddr
 var SystemActorAddr = builtin.SystemActorAddr
 var BurntFundsActorAddr = builtin.BurntFundsActorAddr
 var CronActorAddr = builtin.CronActorAddr
-var DatacapActorAddr = builtin.DatacapActorAddr
 var EthereumAddressManagerActorAddr = builtin.EthereumAddressManagerActorAddr
 var SaftAddress = makeAddress("t0122")
 var ReserveAddress = makeAddress("t090")
@@ -40,7 +39,6 @@ var (
 const (
 	EpochDurationSeconds = builtin.EpochDurationSeconds
 	EpochsInDay          = builtin.EpochsInDay
-	EpochsInYear         = builtin.EpochsInYear
 	SecondsInDay         = builtin.SecondsInDay
 )
 

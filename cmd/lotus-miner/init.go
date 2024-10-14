@@ -38,7 +38,6 @@ import (
 	"github.com/filecoin-project/lotus/api/v0api"
 	"github.com/filecoin-project/lotus/api/v1api"
 	"github.com/filecoin-project/lotus/build"
-	"github.com/filecoin-project/lotus/build/buildconstants"
 	"github.com/filecoin-project/lotus/chain/actors"
 	"github.com/filecoin-project/lotus/chain/actors/builtin/miner"
 	"github.com/filecoin-project/lotus/chain/actors/builtin/power"
@@ -125,7 +124,7 @@ var initCmd = &cli.Command{
 		&cli.Uint64Flag{
 			Name:  "confidence",
 			Usage: "number of block confirmations to wait for",
-			Value: buildconstants.MessageConfidence,
+			Value: build.MessageConfidence,
 		},
 	},
 	Subcommands: []*cli.Command{

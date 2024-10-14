@@ -8,7 +8,7 @@ import (
 
 	"github.com/filecoin-project/go-address"
 
-	"github.com/filecoin-project/lotus/build/buildconstants"
+	"github.com/filecoin-project/lotus/build"
 	"github.com/filecoin-project/lotus/chain/types"
 )
 
@@ -43,7 +43,7 @@ func TestSignedMessageJsonRoundtrip(t *testing.T) {
 
 func TestAddressType(t *testing.T) {
 	//stm: @CHAIN_TYPES_ADDRESS_PREFIX_001
-	buildconstants.SetAddressNetwork(address.Testnet)
+	build.SetAddressNetwork(address.Testnet)
 	addr, err := makeRandomAddress()
 	if err != nil {
 		t.Fatal(err)
@@ -53,7 +53,7 @@ func TestAddressType(t *testing.T) {
 		t.Fatalf("address should start with %s", address.TestnetPrefix)
 	}
 
-	buildconstants.SetAddressNetwork(address.Mainnet)
+	build.SetAddressNetwork(address.Mainnet)
 	addr, err = makeRandomAddress()
 	if err != nil {
 		t.Fatal(err)

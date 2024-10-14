@@ -17,7 +17,6 @@ import (
 	"github.com/filecoin-project/go-state-types/network"
 
 	"github.com/filecoin-project/lotus/build"
-	"github.com/filecoin-project/lotus/build/buildconstants"
 	"github.com/filecoin-project/lotus/chain/actors/builtin/miner"
 	"github.com/filecoin-project/lotus/chain/types"
 	"github.com/filecoin-project/lotus/cmd/lotus-seed/seed"
@@ -96,7 +95,7 @@ var preSealCmd = &cli.Command{
 		&cli.UintFlag{
 			Name:  "network-version",
 			Usage: "specify network version",
-			Value: uint(buildconstants.GenesisNetworkVersion),
+			Value: uint(build.GenesisNetworkVersion),
 		},
 	},
 	Action: func(c *cli.Context) error {
@@ -133,7 +132,7 @@ var preSealCmd = &cli.Command{
 		}
 		sectorSize := abi.SectorSize(sectorSizeInt)
 
-		nv := buildconstants.GenesisNetworkVersion
+		nv := build.GenesisNetworkVersion
 		if c.IsSet("network-version") {
 			nv = network.Version(c.Uint64("network-version"))
 		}

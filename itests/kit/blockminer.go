@@ -204,9 +204,8 @@ func (bm *BlockMiner) WatchMinerForPost(minerAddr address.Address) {
 	bm.postWatchMinersLk.Unlock()
 }
 
-// MineBlocksMustPost is like MineBlocks but refuses to mine until the window post scheduler has
-// wdpost messages in the mempool and everything shuts down if a post fails.  It also enforces that
-// every block mined succeeds
+// Like MineBlocks but refuses to mine until the window post scheduler has wdpost messages in the mempool
+// and everything shuts down if a post fails.  It also enforces that every block mined succeeds
 func (bm *BlockMiner) MineBlocksMustPost(ctx context.Context, blocktime time.Duration) {
 	time.Sleep(time.Second)
 

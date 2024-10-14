@@ -20,7 +20,6 @@ import (
 
 	"github.com/filecoin-project/lotus/api/v0api"
 	"github.com/filecoin-project/lotus/build"
-	"github.com/filecoin-project/lotus/build/buildconstants"
 	"github.com/filecoin-project/lotus/chain/actors"
 	"github.com/filecoin-project/lotus/chain/actors/builtin/verifreg"
 	"github.com/filecoin-project/lotus/chain/types"
@@ -123,7 +122,7 @@ var runCmd = &cli.Command{
 			sendPerRequest: sendPerRequest,
 			limiter: NewLimiter(LimiterConfig{
 				TotalRate:   500 * time.Millisecond,
-				TotalBurst:  buildconstants.BlockMessageLimit,
+				TotalBurst:  build.BlockMessageLimit,
 				IPRate:      10 * time.Minute,
 				IPBurst:     5,
 				WalletRate:  15 * time.Minute,

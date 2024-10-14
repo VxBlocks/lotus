@@ -19,7 +19,6 @@ import (
 )
 
 // TODO: move this to go-ipfs-blockstore.
-
 type Suite struct {
 	NewBlockstore  func(tb testing.TB) (bs blockstore.BasicBlockstore, path string)
 	OpenBlockstore func(tb testing.TB, path string) (bs blockstore.BasicBlockstore, err error)

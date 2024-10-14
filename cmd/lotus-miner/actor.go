@@ -23,7 +23,6 @@ var actorCmd = &cli.Command{
 	Usage: "manipulate the miner actor",
 	Subcommands: []*cli.Command{
 		spcli.ActorSetAddrsCmd(LMActorGetter),
-		spcli.ActorDealSettlementCmd(LMActorGetter),
 		spcli.ActorWithdrawCmd(LMActorGetter),
 		spcli.ActorRepayDebtCmd(LMActorGetter),
 		spcli.ActorSetPeeridCmd(LMActorGetter),

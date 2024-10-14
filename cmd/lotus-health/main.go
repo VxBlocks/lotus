@@ -16,7 +16,6 @@ import (
 
 	"github.com/filecoin-project/lotus/api/v0api"
 	"github.com/filecoin-project/lotus/build"
-	"github.com/filecoin-project/lotus/build/buildconstants"
 	"github.com/filecoin-project/lotus/chain/types"
 	lcli "github.com/filecoin-project/lotus/cli"
 )
@@ -64,7 +63,7 @@ var watchHeadCmd = &cli.Command{
 		},
 		&cli.IntFlag{
 			Name:  "interval",
-			Value: int(buildconstants.BlockDelaySecs),
+			Value: int(build.BlockDelaySecs),
 			Usage: "interval in seconds between chain head checks",
 		},
 		&cli.StringFlag{
@@ -75,7 +74,7 @@ var watchHeadCmd = &cli.Command{
 		&cli.IntFlag{
 			Name: "api-timeout",
 			// TODO: this default value seems spurious.
-			Value: int(buildconstants.BlockDelaySecs),
+			Value: int(build.BlockDelaySecs),
 			Usage: "timeout between API retries",
 		},
 		&cli.IntFlag{
@@ -238,7 +237,7 @@ func waitForSyncComplete(ctx context.Context, a v0api.FullNode, r int, t time.Du
 				return err
 			}
 
-			if time.Now().Unix()-int64(head.MinTimestamp()) < int64(buildconstants.BlockDelaySecs) {
+			if time.Now().Unix()-int64(head.MinTimestamp()) < int64(build.BlockDelaySecs) {
 				return nil
 			}
 		}

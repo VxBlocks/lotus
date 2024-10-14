@@ -10,7 +10,7 @@ import (
 
 var ErrActorNotFound = errors.New("actor not found")
 
-// ActorV4 is Actor State for state tree version up to 4
+// Actor State for state tree version up to 4
 type ActorV4 struct {
 	// Identifies the type of actor (string coded as a CID), see `chain/actors/actors.go`.
 	Code    cid.Cid
@@ -19,7 +19,7 @@ type ActorV4 struct {
 	Balance BigInt
 }
 
-// ActorV5 is Actor State for state tree version 5
+// Actor State for state tree version 5
 type ActorV5 struct {
 	// Identifies the type of actor (string coded as a CID), see `chain/actors/actors.go`.
 	Code    cid.Cid

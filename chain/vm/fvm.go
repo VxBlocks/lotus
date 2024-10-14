@@ -28,7 +28,6 @@ import (
 
 	"github.com/filecoin-project/lotus/blockstore"
 	"github.com/filecoin-project/lotus/build"
-	"github.com/filecoin-project/lotus/build/buildconstants"
 	"github.com/filecoin-project/lotus/chain/actors"
 	"github.com/filecoin-project/lotus/chain/actors/adt"
 	"github.com/filecoin-project/lotus/chain/actors/aerrors"
@@ -95,10 +94,10 @@ func (x *FvmExtern) VerifyConsensusFault(ctx context.Context, a, b, extra []byte
 	}
 
 	// workaround chain halt
-	if buildconstants.IsNearUpgrade(blockA.Height, buildconstants.UpgradeWatermelonFixHeight) {
+	if build.IsNearUpgrade(blockA.Height, build.UpgradeWatermelonFixHeight) {
 		return ret, totalGas
 	}
-	if buildconstants.IsNearUpgrade(blockB.Height, buildconstants.UpgradeWatermelonFixHeight) {
+	if build.IsNearUpgrade(blockB.Height, build.UpgradeWatermelonFixHeight) {
 		return ret, totalGas
 	}
 
@@ -275,13 +274,13 @@ func defaultFVMOpts(ctx context.Context, opts *VMOpts) (*ffi.FVMOpts, error) {
 		},
 		Epoch:          opts.Epoch,
 		Timestamp:      opts.Timestamp,
-		ChainID:        buildconstants.Eip155ChainId,
+		ChainID:        build.Eip155ChainId,
 		BaseFee:        opts.BaseFee,
 		BaseCircSupply: circToReport,
 		NetworkVersion: opts.NetworkVersion,
 		StateBase:      opts.StateBase,
 		Tracing:        opts.Tracing || EnableDetailedTracing,
-		Debug:          buildconstants.ActorDebugging,
+		Debug:          build.ActorDebugging,
 	}, nil
 
 }

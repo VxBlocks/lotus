@@ -3655,7 +3655,7 @@ Perms: read
 Inputs:
 ```json
 [
-  24
+  23
 ]
 ```
 
@@ -3670,7 +3670,7 @@ Perms: read
 Inputs:
 ```json
 [
-  24
+  23
 ]
 ```
 
@@ -4483,8 +4483,7 @@ Response:
     "UpgradeWatermelonHeight": 10101,
     "UpgradeDragonHeight": 10101,
     "UpgradePhoenixHeight": 10101,
-    "UpgradeWaffleHeight": 10101,
-    "UpgradeTuktukHeight": 10101
+    "UpgradeWaffleHeight": 10101
   },
   "Eip155ChainID": 123
 }
@@ -5167,7 +5166,7 @@ Response:
 ```
 
 ### StateMinerPreCommitDepositForPower
-StateMinerPreCommitDepositForPower returns the precommit deposit for the specified miner's sector
+StateMinerInitialPledgeCollateral returns the precommit deposit for the specified miner's sector
 
 
 Perms: read
@@ -5410,7 +5409,7 @@ Inputs:
 ]
 ```
 
-Response: `24`
+Response: `23`
 
 ### StateReadState
 StateReadState returns the indicated actor's state.

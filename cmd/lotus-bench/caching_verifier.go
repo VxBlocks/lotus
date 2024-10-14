@@ -6,25 +6,24 @@ import (
 	"errors"
 
 	"github.com/ipfs/go-datastore"
+	"github.com/minio/blake2b-simd"
 	cbg "github.com/whyrusleeping/cbor-gen"
-	"golang.org/x/crypto/blake2b"
 
 	"github.com/filecoin-project/go-state-types/abi"
 	prooftypes "github.com/filecoin-project/go-state-types/proof"
 
-	"github.com/filecoin-project/lotus/chain/proofs"
-	"github.com/filecoin-project/lotus/lib/must"
+	"github.com/filecoin-project/lotus/storage/sealer/storiface"
 )
 
 type cachingVerifier struct {
 	ds      datastore.Datastore
-	backend proofs.Verifier
+	backend storiface.Verifier
 }
 
 const bufsize = 128
 
 func (cv cachingVerifier) withCache(execute func() (bool, error), param cbg.CBORMarshaler) (bool, error) {
-	hasher := must.One(blake2b.New256(nil))
+	hasher := blake2b.New256()
 	wr := bufio.NewWriterSize(hasher, bufsize)
 	err := param.MarshalCBOR(wr)
 	if err != nil {
@@ -108,4 +107,4 @@ func (cv cachingVerifier) VerifyReplicaUpdate(update prooftypes.ReplicaUpdateInf
 	return cv.backend.VerifyReplicaUpdate(update)
 }
 
-var _ proofs.Verifier = (*cachingVerifier)(nil)
+var _ storiface.Verifier = (*cachingVerifier)(nil)

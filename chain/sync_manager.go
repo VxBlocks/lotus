@@ -14,12 +14,11 @@ import (
 	"github.com/filecoin-project/go-address"
 
 	"github.com/filecoin-project/lotus/build"
-	"github.com/filecoin-project/lotus/build/buildconstants"
 	"github.com/filecoin-project/lotus/chain/types"
 )
 
 var (
-	BootstrapPeerThreshold = buildconstants.BootstrapPeerThreshold
+	BootstrapPeerThreshold = build.BootstrapPeerThreshold
 
 	RecentSyncBufferSize = 10
 	MaxSyncWorkers       = 5
@@ -111,7 +110,6 @@ type workerStatus struct {
 }
 
 // sync manager interface
-
 func NewSyncManager(sync SyncFunc) SyncManager {
 	ctx, cancel := context.WithCancel(context.Background())
 	return &syncManager{

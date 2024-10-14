@@ -20,7 +20,7 @@ import (
 	"github.com/filecoin-project/go-state-types/abi"
 
 	bstore "github.com/filecoin-project/lotus/blockstore"
-	"github.com/filecoin-project/lotus/chain/actors/policy"
+	"github.com/filecoin-project/lotus/build"
 	"github.com/filecoin-project/lotus/chain/stmgr"
 	"github.com/filecoin-project/lotus/chain/types"
 	"github.com/filecoin-project/lotus/metrics"
@@ -59,7 +59,7 @@ var (
 	enableDebugLogWriteTraces = false
 
 	// upgradeBoundary is the boundary before and after an upgrade where we suppress compaction
-	upgradeBoundary = policy.ChainFinality
+	upgradeBoundary = build.Finality
 )
 
 type CompactType int
@@ -297,8 +297,7 @@ func Open(path string, ds dstore.Datastore, hot, cold bstore.Blockstore, cfg *Co
 	return ss, nil
 }
 
-// Blockstore interface --------------------------------------------------------
-
+// Blockstore interface
 func (s *SplitStore) DeleteBlock(_ context.Context, _ cid.Cid) error {
 	// afaict we don't seem to be using this method, so it's not implemented
 	return errors.New("DeleteBlock not implemented on SplitStore; don't do this Luke!") //nolint
@@ -687,7 +686,7 @@ func (s *SplitStore) isWarm() bool {
 	return s.warmupEpoch.Load() > 0
 }
 
-// Start state tracking
+// State tracking
 func (s *SplitStore) Start(chain ChainAccessor, us stmgr.UpgradeSchedule) error {
 	s.chain = chain
 	curTs := chain.GetHeaviestTipSet()

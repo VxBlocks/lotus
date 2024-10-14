@@ -3,7 +3,6 @@ package state
 import (
 	"bytes"
 	"context"
-	"errors"
 	"fmt"
 
 	"github.com/ipfs/go-cid"
@@ -157,7 +156,7 @@ func VersionForNetwork(ver network.Version) (types.StateTreeVersion, error) {
 	case network.Version13, network.Version14, network.Version15, network.Version16, network.Version17:
 		return types.StateTreeVersion4, nil
 
-	case network.Version18, network.Version19, network.Version20, network.Version21, network.Version22, network.Version23, network.Version24:
+	case network.Version18, network.Version19, network.Version20, network.Version21, network.Version22, network.Version23:
 		return types.StateTreeVersion5, nil
 
 	default:
@@ -369,7 +368,7 @@ func (st *StateTree) GetActor(addr address.Address) (*types.Actor, error) {
 	// Transform `addr` to its ID format.
 	iaddr, err := st.LookupIDAddress(addr)
 	if err != nil {
-		if errors.Is(err, types.ErrActorNotFound) {
+		if xerrors.Is(err, types.ErrActorNotFound) {
 			return nil, xerrors.Errorf("resolution lookup failed (%s): %w", addr, err)
 		}
 		return nil, xerrors.Errorf("address resolution: %w", err)
@@ -414,7 +413,7 @@ func (st *StateTree) DeleteActor(addr address.Address) error {
 
 	iaddr, err := st.LookupIDAddress(addr)
 	if err != nil {
-		if errors.Is(err, types.ErrActorNotFound) {
+		if xerrors.Is(err, types.ErrActorNotFound) {
 			return xerrors.Errorf("resolution lookup failed (%s): %w", addr, err)
 		}
 		return xerrors.Errorf("address resolution: %w", err)

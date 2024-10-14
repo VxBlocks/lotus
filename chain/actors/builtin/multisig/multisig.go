@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/ipfs/go-cid"
+	"github.com/minio/blake2b-simd"
 	cbg "github.com/whyrusleeping/cbor-gen"
 	"golang.org/x/xerrors"
 
@@ -11,7 +12,7 @@ import (
 	"github.com/filecoin-project/go-state-types/abi"
 	actorstypes "github.com/filecoin-project/go-state-types/actors"
 	builtintypes "github.com/filecoin-project/go-state-types/builtin"
-	msig15 "github.com/filecoin-project/go-state-types/builtin/v15/multisig"
+	msig14 "github.com/filecoin-project/go-state-types/builtin/v14/multisig"
 	"github.com/filecoin-project/go-state-types/cbor"
 	"github.com/filecoin-project/go-state-types/manifest"
 	builtin0 "github.com/filecoin-project/specs-actors/actors/builtin"
@@ -55,9 +56,6 @@ func Load(store adt.Store, act *types.Actor) (State, error) {
 
 		case actorstypes.Version14:
 			return load14(store, act.Head)
-
-		case actorstypes.Version15:
-			return load15(store, act.Head)
 
 		}
 	}
@@ -135,9 +133,6 @@ func MakeState(store adt.Store, av actorstypes.Version, signers []address.Addres
 	case actorstypes.Version14:
 		return make14(store, signers, threshold, startEpoch, unlockDuration, initialBalance)
 
-	case actorstypes.Version15:
-		return make15(store, signers, threshold, startEpoch, unlockDuration, initialBalance)
-
 	}
 	return nil, xerrors.Errorf("unknown actor version %d", av)
 }
@@ -164,7 +159,7 @@ type State interface {
 	GetState() interface{}
 }
 
-type Transaction = msig15.Transaction
+type Transaction = msig14.Transaction
 
 var Methods = builtintypes.MethodsMultisig
 
@@ -212,9 +207,6 @@ func Message(version actorstypes.Version, from address.Address) MessageBuilder {
 
 	case actorstypes.Version14:
 		return message14{message0{from}}
-
-	case actorstypes.Version15:
-		return message15{message0{from}}
 	default:
 		panic(fmt.Sprintf("unsupported actors version: %d", version))
 	}
@@ -238,10 +230,33 @@ type MessageBuilder interface {
 }
 
 // this type is the same between v0 and v2
-type ProposalHashData = msig15.ProposalHashData
-type ProposeReturn = msig15.ProposeReturn
-type ProposeParams = msig15.ProposeParams
-type ApproveReturn = msig15.ApproveReturn
+type ProposalHashData = msig14.ProposalHashData
+type ProposeReturn = msig14.ProposeReturn
+type ProposeParams = msig14.ProposeParams
+type ApproveReturn = msig14.ApproveReturn
+
+func txnParams(id uint64, data *ProposalHashData) ([]byte, error) {
+	params := msig14.TxnIDParams{ID: msig14.TxnID(id)}
+	if data != nil {
+		if data.Requester.Protocol() != address.ID {
+			return nil, xerrors.Errorf("proposer address must be an ID address, was %s", data.Requester)
+		}
+		if data.Value.Sign() == -1 {
+			return nil, xerrors.Errorf("proposal value must be non-negative, was %s", data.Value)
+		}
+		if data.To == address.Undef {
+			return nil, xerrors.Errorf("proposed destination address must be set")
+		}
+		pser, err := data.Serialize()
+		if err != nil {
+			return nil, err
+		}
+		hash := blake2b.Sum256(pser)
+		params.ProposalHash = hash[:]
+	}
+
+	return actors.SerializeParams(&params)
+}
 
 func AllCodes() []cid.Cid {
 	return []cid.Cid{
@@ -259,6 +274,5 @@ func AllCodes() []cid.Cid {
 		(&state12{}).Code(),
 		(&state13{}).Code(),
 		(&state14{}).Code(),
-		(&state15{}).Code(),
 	}
 }

@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/binary"
-	"errors"
 	"sync"
 	"time"
 
@@ -25,7 +24,6 @@ import (
 	"github.com/filecoin-project/go-address"
 
 	"github.com/filecoin-project/lotus/build"
-	"github.com/filecoin-project/lotus/build/buildconstants"
 	"github.com/filecoin-project/lotus/chain"
 	"github.com/filecoin-project/lotus/chain/consensus"
 	"github.com/filecoin-project/lotus/chain/messagepool"
@@ -49,7 +47,7 @@ var msgCidPrefix = cid.Prefix{
 func HandleIncomingBlocks(ctx context.Context, bsub *pubsub.Subscription, s *chain.Syncer, bs bserv.BlockService, cmgr connmgr.ConnManager) {
 	// Timeout after (block time + propagation delay). This is useless at
 	// this point.
-	timeout := time.Duration(buildconstants.BlockDelaySecs+buildconstants.PropagationDelaySecs) * time.Second
+	timeout := time.Duration(build.BlockDelaySecs+build.PropagationDelaySecs) * time.Second
 
 	for {
 		msg, err := bsub.Next(ctx)
@@ -139,7 +137,6 @@ func FetchMessagesByCids(
 }
 
 // FIXME: Duplicate of above.
-
 func FetchSignedMessagesByCids(
 	ctx context.Context,
 	bserv bserv.BlockGetter,
@@ -355,28 +352,28 @@ func (mv *MessageValidator) Validate(ctx context.Context, pid peer.ID, msg *pubs
 		recordFailure(ctx, metrics.MessageValidationFailure, "add")
 		switch {
 
-		case errors.Is(err, messagepool.ErrSoftValidationFailure):
+		case xerrors.Is(err, messagepool.ErrSoftValidationFailure):
 			fallthrough
-		case errors.Is(err, messagepool.ErrRBFTooLowPremium):
+		case xerrors.Is(err, messagepool.ErrRBFTooLowPremium):
 			fallthrough
-		case errors.Is(err, messagepool.ErrTooManyPendingMessages):
+		case xerrors.Is(err, messagepool.ErrTooManyPendingMessages):
 			fallthrough
-		case errors.Is(err, messagepool.ErrNonceGap):
+		case xerrors.Is(err, messagepool.ErrNonceGap):
 			fallthrough
-		case errors.Is(err, messagepool.ErrGasFeeCapTooLow):
+		case xerrors.Is(err, messagepool.ErrGasFeeCapTooLow):
 			fallthrough
-		case errors.Is(err, messagepool.ErrNonceTooLow):
+		case xerrors.Is(err, messagepool.ErrNonceTooLow):
 			fallthrough
-		case errors.Is(err, messagepool.ErrNotEnoughFunds):
+		case xerrors.Is(err, messagepool.ErrNotEnoughFunds):
 			fallthrough
-		case errors.Is(err, messagepool.ErrExistingNonce):
+		case xerrors.Is(err, messagepool.ErrExistingNonce):
 			return pubsub.ValidationIgnore
 
-		case errors.Is(err, messagepool.ErrMessageTooBig):
+		case xerrors.Is(err, messagepool.ErrMessageTooBig):
 			fallthrough
-		case errors.Is(err, messagepool.ErrMessageValueTooHigh):
+		case xerrors.Is(err, messagepool.ErrMessageValueTooHigh):
 			fallthrough
-		case errors.Is(err, messagepool.ErrInvalidToAddr):
+		case xerrors.Is(err, messagepool.ErrInvalidToAddr):
 			fallthrough
 		default:
 			return pubsub.ValidationReject

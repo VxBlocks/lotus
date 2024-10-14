@@ -35,7 +35,6 @@ import (
 	"github.com/filecoin-project/lotus/api"
 	"github.com/filecoin-project/lotus/api/v1api"
 	"github.com/filecoin-project/lotus/build"
-	"github.com/filecoin-project/lotus/build/buildconstants"
 	"github.com/filecoin-project/lotus/chain"
 	"github.com/filecoin-project/lotus/chain/actors"
 	"github.com/filecoin-project/lotus/chain/actors/builtin/miner"
@@ -43,8 +42,6 @@ import (
 	"github.com/filecoin-project/lotus/chain/gen"
 	genesis2 "github.com/filecoin-project/lotus/chain/gen/genesis"
 	"github.com/filecoin-project/lotus/chain/messagepool"
-	"github.com/filecoin-project/lotus/chain/proofs"
-	proofsmock "github.com/filecoin-project/lotus/chain/proofs/mock"
 	"github.com/filecoin-project/lotus/chain/stmgr"
 	"github.com/filecoin-project/lotus/chain/types"
 	"github.com/filecoin-project/lotus/chain/wallet/key"
@@ -52,9 +49,11 @@ import (
 	"github.com/filecoin-project/lotus/cmd/lotus-worker/sealworker"
 	"github.com/filecoin-project/lotus/gateway"
 	"github.com/filecoin-project/lotus/genesis"
+	"github.com/filecoin-project/lotus/lib/harmony/harmonydb"
 	lotusminer "github.com/filecoin-project/lotus/miner"
 	"github.com/filecoin-project/lotus/node"
 	"github.com/filecoin-project/lotus/node/config"
+	"github.com/filecoin-project/lotus/node/impl"
 	"github.com/filecoin-project/lotus/node/modules"
 	"github.com/filecoin-project/lotus/node/modules/dtypes"
 	testing2 "github.com/filecoin-project/lotus/node/modules/testing"
@@ -121,15 +120,15 @@ type Ensemble struct {
 	inactive struct {
 		fullnodes       []*TestFullNode
 		miners          []*TestMiner
-		workers         []*TestWorker
 		unmanagedMiners []*TestUnmanagedMiner
+		workers         []*TestWorker
 	}
 	active struct {
 		fullnodes       []*TestFullNode
 		miners          []*TestMiner
+		unmanagedMiners []*TestUnmanagedMiner
 		workers         []*TestWorker
 		bms             map[*TestMiner]*BlockMiner
-		unmanagedMiners []*TestUnmanagedMiner
 	}
 	genesis struct {
 		version  network.Version
@@ -172,7 +171,7 @@ func NewEnsemble(t *testing.T, opts ...EnsembleOpt) *Ensemble {
 		require.NoError(t, build.UseNetworkBundle("testing"))
 	}
 
-	buildconstants.EquivocationDelaySecs = 0
+	build.EquivocationDelaySecs = 0
 
 	return n
 }
@@ -222,7 +221,7 @@ func (n *Ensemble) FullNode(full *TestFullNode, opts ...NodeOpt) *Ensemble {
 	return n
 }
 
-// MinerEnroll enrolls a new miner, using the provided full node for chain
+// Miner enrolls a new miner, using the provided full node for chain
 // interactions.
 func (n *Ensemble) MinerEnroll(minerNode *TestMiner, full *TestFullNode, opts ...NodeOpt) *Ensemble {
 	require.NotNil(n.t, full, "full node required when instantiating miner")
@@ -324,11 +323,11 @@ func (n *Ensemble) Miner(minerNode *TestMiner, full *TestFullNode, opts ...NodeO
 	return n
 }
 
-func (n *Ensemble) UnmanagedMiner(ctx context.Context, full *TestFullNode, opts ...NodeOpt) (*TestUnmanagedMiner, *Ensemble) {
+func (n *Ensemble) UnmanagedMiner(full *TestFullNode, opts ...NodeOpt) (*TestUnmanagedMiner, *Ensemble) {
 	actorAddr, err := address.NewIDAddress(genesis2.MinerStart + n.minerCount())
 	require.NoError(n.t, err)
 
-	minerNode := NewTestUnmanagedMiner(ctx, n.t, full, actorAddr, n.options.mockProofs, opts...)
+	minerNode := NewTestUnmanagedMiner(n.t, full, actorAddr, n.options.mockProofs, opts...)
 	n.AddInactiveUnmanagedMiner(minerNode)
 	return minerNode, n
 }
@@ -372,6 +371,8 @@ func (n *Ensemble) Start() *Ensemble {
 		gtempl = n.generateGenesis()
 		n.mn = mocknet.New()
 	}
+
+	sharedITestID := harmonydb.ITestNewID()
 
 	// ---------------------
 	//  FULL NODES
@@ -458,7 +459,6 @@ func (n *Ensemble) Start() *Ensemble {
 		// Are we mocking proofs?
 		if n.options.mockProofs {
 			opts = append(opts,
-				node.Override(new(proofs.Verifier), proofsmock.MockVerifier),
 				node.Override(new(storiface.Verifier), mock.MockVerifier),
 				node.Override(new(storiface.Prover), mock.MockProver),
 			)
@@ -554,7 +554,7 @@ func (n *Ensemble) Start() *Ensemble {
 				})
 				require.NoError(n.t, err)
 
-				mw, err := m.FullNode.FullNode.StateWaitMsg(ctx, signed.Cid(), buildconstants.MessageConfidence, api.LookbackNoLimit, true)
+				mw, err := m.FullNode.FullNode.StateWaitMsg(ctx, signed.Cid(), build.MessageConfidence, api.LookbackNoLimit, true)
 				require.NoError(n.t, err)
 				require.Equal(n.t, exitcode.Ok, mw.Receipt.ExitCode)
 
@@ -580,7 +580,7 @@ func (n *Ensemble) Start() *Ensemble {
 				})
 				require.NoError(n.t, err2)
 
-				mw, err2 := m.FullNode.FullNode.StateWaitMsg(ctx, signed.Cid(), buildconstants.MessageConfidence, api.LookbackNoLimit, true)
+				mw, err2 := m.FullNode.FullNode.StateWaitMsg(ctx, signed.Cid(), build.MessageConfidence, api.LookbackNoLimit, true)
 				require.NoError(n.t, err2)
 				require.Equal(n.t, exitcode.Ok, mw.Receipt.ExitCode)
 			}
@@ -617,6 +617,7 @@ func (n *Ensemble) Start() *Ensemble {
 		cfg.Subsystems.EnableMining = m.options.subsystems.Has(SMining)
 		cfg.Subsystems.EnableSealing = m.options.subsystems.Has(SSealing)
 		cfg.Subsystems.EnableSectorStorage = m.options.subsystems.Has(SSectorStorage)
+		cfg.Subsystems.EnableSectorIndexDB = m.options.subsystems.Has(SHarmony)
 
 		if m.options.mainMiner != nil {
 			token, err := m.options.mainMiner.FullNode.AuthNew(ctx, api.AllPermissions)
@@ -733,6 +734,17 @@ func (n *Ensemble) Start() *Ensemble {
 
 			// upgrades
 			node.Override(new(stmgr.UpgradeSchedule), n.options.upgradeSchedule),
+
+			node.Override(new(harmonydb.ITestID), sharedITestID),
+			node.Override(new(config.HarmonyDB), func() config.HarmonyDB {
+				return config.HarmonyDB{
+					Hosts:    []string{envElse("LOTUS_HARMONYDB_HOSTS", "127.0.0.1")},
+					Database: "yugabyte",
+					Username: "yugabyte",
+					Password: "yugabyte",
+					Port:     "5433",
+				}
+			}),
 		}
 		// append any node builder options.
 		opts = append(opts, m.options.extraNodeOpts...)
@@ -761,7 +773,6 @@ func (n *Ensemble) Start() *Ensemble {
 				node.Override(new(sectorstorage.Unsealer), node.From(new(*mock.SectorMgr))),
 				node.Override(new(sectorstorage.PieceProvider), node.From(new(*mock.SectorMgr))),
 
-				node.Override(new(proofs.Verifier), proofsmock.MockVerifier),
 				node.Override(new(storiface.Verifier), mock.MockVerifier),
 				node.Override(new(storiface.Prover), mock.MockProver),
 				node.Unset(new(*sectorstorage.Manager)),
@@ -773,6 +784,12 @@ func (n *Ensemble) Start() *Ensemble {
 		require.NoError(n.t, err)
 
 		n.t.Cleanup(func() { _ = stop(context.Background()) })
+		mCopy := m
+		n.t.Cleanup(func() {
+			if mCopy.BaseAPI.(*impl.StorageMinerAPI).HarmonyDB != nil {
+				mCopy.BaseAPI.(*impl.StorageMinerAPI).HarmonyDB.ITestDeleteAll()
+			}
+		})
 
 		m.BaseAPI = m.StorageMiner
 
@@ -827,7 +844,7 @@ func (n *Ensemble) Start() *Ensemble {
 		})
 		require.NoError(n.t, err)
 
-		mw, err := m.FullNode.FullNode.StateWaitMsg(ctx, signed.Cid(), buildconstants.MessageConfidence, api.LookbackNoLimit, true)
+		mw, err := m.FullNode.FullNode.StateWaitMsg(ctx, signed.Cid(), build.MessageConfidence, api.LookbackNoLimit, true)
 		require.NoError(n.t, err)
 		require.Equal(n.t, exitcode.Ok, mw.Receipt.ExitCode)
 
@@ -901,6 +918,8 @@ func (n *Ensemble) Start() *Ensemble {
 		require.NoError(n.t, err)
 
 		auth := http.Header(nil)
+
+		// FUTURE: Use m.MinerNode.(BaseAPI).(impl.StorageMinerAPI).HarmonyDB to setup.
 
 		remote := paths.NewRemote(localStore, m.MinerNode, auth, 20, &paths.DefaultPartialFileHandler{})
 		store := m.options.workerStorageOpt(remote)
@@ -1138,4 +1157,11 @@ func importPreSealMeta(ctx context.Context, meta genesis.Miner, mds dtypes.Metad
 	buf := make([]byte, binary.MaxVarintLen64)
 	size := binary.PutUvarint(buf, uint64(maxSectorID))
 	return mds.Put(ctx, datastore.NewKey(pipeline.StorageCounterDSPrefix), buf[:size])
+}
+
+func envElse(env, els string) string {
+	if v := os.Getenv(env); v != "" {
+		return v
+	}
+	return els
 }

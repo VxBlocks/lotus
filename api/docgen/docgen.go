@@ -6,11 +6,9 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
-	"io"
 	"net/http"
 	"path/filepath"
 	"reflect"
-	"sort"
 	"strings"
 	"time"
 	"unicode"
@@ -29,18 +27,17 @@ import (
 	"github.com/filecoin-project/go-bitfield"
 	"github.com/filecoin-project/go-f3/certs"
 	"github.com/filecoin-project/go-f3/gpbft"
-	"github.com/filecoin-project/go-f3/manifest"
 	"github.com/filecoin-project/go-jsonrpc/auth"
 	"github.com/filecoin-project/go-state-types/abi"
+	"github.com/filecoin-project/go-state-types/builtin/v9/verifreg"
 	"github.com/filecoin-project/go-state-types/crypto"
 	"github.com/filecoin-project/go-state-types/exitcode"
 
 	"github.com/filecoin-project/lotus/api"
 	apitypes "github.com/filecoin-project/lotus/api/types"
 	"github.com/filecoin-project/lotus/api/v0api"
-	"github.com/filecoin-project/lotus/build/buildconstants"
+	"github.com/filecoin-project/lotus/build"
 	"github.com/filecoin-project/lotus/chain/actors/builtin/miner"
-	"github.com/filecoin-project/lotus/chain/actors/builtin/verifreg"
 	"github.com/filecoin-project/lotus/chain/types"
 	"github.com/filecoin-project/lotus/chain/types/ethtypes"
 	"github.com/filecoin-project/lotus/node/modules/dtypes"
@@ -124,10 +121,9 @@ func init() {
 	addExample(api.FullAPIVersion1)
 	addExample(api.PCHInbound)
 	addExample(time.Minute)
-	addExample(gpbft.INITIAL_PHASE)
 
 	addExample(network.ReachabilityPublic)
-	addExample(buildconstants.TestNetworkVersion)
+	addExample(build.TestNetworkVersion)
 	allocationId := verifreg.AllocationId(0)
 	addExample(allocationId)
 	addExample(&allocationId)
@@ -376,20 +372,6 @@ func init() {
 		Address:   []ethtypes.EthAddress{ethaddr},
 	})
 
-	after := ethtypes.EthUint64(0)
-	count := ethtypes.EthUint64(100)
-
-	ethTraceFilterCriteria := ethtypes.EthTraceFilterCriteria{
-		FromBlock:   pstring("latest"),
-		ToBlock:     pstring("latest"),
-		FromAddress: ethtypes.EthAddressList{ethaddr},
-		ToAddress:   ethtypes.EthAddressList{ethaddr},
-		After:       &after,
-		Count:       &count,
-	}
-	addExample(&ethTraceFilterCriteria)
-	addExample(ethTraceFilterCriteria)
-
 	percent := types.Percent(123)
 	addExample(percent)
 	addExample(&percent)
@@ -420,8 +402,6 @@ func init() {
 		ToHeight:   epochPtr(1020),
 	})
 	addExample(&certs.FinalityCertificate{})
-	addExample(&manifest.Manifest{})
-	addExample(gpbft.NetworkName("filecoin"))
 	addExample(gpbft.ActorID(1000))
 }
 
@@ -556,153 +536,22 @@ func (v *Visitor) Visit(node ast.Node) ast.Visitor {
 
 const NoComment = "There are not yet any comments for this method."
 
-type ApiASTInfo struct {
-	Comments      map[string]string
-	GroupComments map[string]string
-}
-
-func Generate(out io.Writer, iface, pkg string, ainfo ApiASTInfo) error {
-
-	groups := make(map[string]*MethodGroup)
-
-	_, t, permStruct := GetAPIType(iface, pkg)
-
-	for i := 0; i < t.NumMethod(); i++ {
-		m := t.Method(i)
-
-		groupName := MethodGroupFromName(m.Name)
-
-		g, ok := groups[groupName]
-		if !ok {
-			g = new(MethodGroup)
-			g.Header = ainfo.GroupComments[groupName]
-			g.GroupName = groupName
-			groups[groupName] = g
-		}
-
-		var args []interface{}
-		ft := m.Func.Type()
-		for j := 2; j < ft.NumIn(); j++ {
-			inp := ft.In(j)
-			args = append(args, ExampleValue(m.Name, inp, nil))
-		}
-
-		v, err := json.MarshalIndent(args, "", "  ")
-		if err != nil {
-			panic(err)
-		}
-
-		outv := ExampleValue(m.Name, ft.Out(0), nil)
-
-		ov, err := json.MarshalIndent(outv, "", "  ")
-		if err != nil {
-			panic(err)
-		}
-
-		g.Methods = append(g.Methods, &Method{
-			Name:            m.Name,
-			Comment:         ainfo.Comments[m.Name],
-			InputExample:    string(v),
-			ResponseExample: string(ov),
-		})
-	}
-
-	var groupslice []*MethodGroup
-	for _, g := range groups {
-		groupslice = append(groupslice, g)
-	}
-
-	sort.Slice(groupslice, func(i, j int) bool {
-		return groupslice[i].GroupName < groupslice[j].GroupName
-	})
-
-	if _, err := fmt.Fprintf(out, "# Groups\n"); err != nil {
-		return err
-	}
-
-	for _, g := range groupslice {
-		if _, err := fmt.Fprintf(out, "* [%s](#%s)\n", g.GroupName, g.GroupName); err != nil {
-			return err
-		}
-		for _, method := range g.Methods {
-			if _, err := fmt.Fprintf(out, "  * [%s](#%s)\n", method.Name, method.Name); err != nil {
-				return err
-			}
-		}
-	}
-
-	for _, g := range groupslice {
-		g := g
-		if _, err := fmt.Fprintf(out, "## %s\n", g.GroupName); err != nil {
-			return err
-		}
-		if _, err := fmt.Fprintf(out, "%s\n\n", g.Header); err != nil {
-			return err
-		}
-
-		sort.Slice(g.Methods, func(i, j int) bool {
-			return g.Methods[i].Name < g.Methods[j].Name
-		})
-
-		for _, m := range g.Methods {
-			if _, err := fmt.Fprintf(out, "### %s\n", m.Name); err != nil {
-				return err
-			}
-			if _, err := fmt.Fprintf(out, "%s\n\n", m.Comment); err != nil {
-				return err
-			}
-
-			var meth reflect.StructField
-			var ok bool
-			for _, ps := range permStruct {
-				meth, ok = ps.FieldByName(m.Name)
-				if ok {
-					break
-				}
-			}
-			if !ok {
-				return fmt.Errorf("no perms for method: %s", m.Name)
-			}
-
-			perms := meth.Tag.Get("perm")
-
-			if _, err := fmt.Fprintf(out, "Perms: %s\n\n", perms); err != nil {
-				return err
-			}
-
-			if strings.Count(m.InputExample, "\n") > 0 {
-				if _, err := fmt.Fprintf(out, "Inputs:\n```json\n%s\n```\n\n", m.InputExample); err != nil {
-					return err
-				}
-			} else if _, err := fmt.Fprintf(out, "Inputs: `%s`\n\n", m.InputExample); err != nil {
-				return err
-			}
-
-			if strings.Count(m.ResponseExample, "\n") > 0 {
-				if _, err := fmt.Fprintf(out, "Response:\n```json\n%s\n```\n\n", m.ResponseExample); err != nil {
-					return err
-				}
-			} else if _, err := fmt.Fprintf(out, "Response: `%s`\n\n", m.ResponseExample); err != nil {
-				return err
-			}
-		}
-	}
-	return nil
-}
-
-func ParseApiASTInfo(apiFile, iface, pkg, dir string) (ApiASTInfo, error) { //nolint:golint
+func ParseApiASTInfo(apiFile, iface, pkg, dir string) (comments map[string]string, groupDocs map[string]string) { //nolint:golint
 	fset := token.NewFileSet()
 	apiDir, err := filepath.Abs(dir)
 	if err != nil {
-		return ApiASTInfo{}, fmt.Errorf("./api filepath absolute error: %w", err)
+		fmt.Println("./api filepath absolute error: ", err)
+		return
 	}
 	apiFile, err = filepath.Abs(apiFile)
 	if err != nil {
-		return ApiASTInfo{}, fmt.Errorf("filepath absolute file: %s, err: %w", apiFile, err)
+		fmt.Println("filepath absolute error: ", err, "file:", apiFile)
+		return
 	}
 	pkgs, err := parser.ParseDir(fset, apiDir, nil, parser.AllErrors|parser.ParseComments)
 	if err != nil {
-		return ApiASTInfo{}, fmt.Errorf("parse error: %w", err)
+		fmt.Println("parse error: ", err)
+		return
 	}
 
 	ap := pkgs[pkg]
@@ -714,8 +563,8 @@ func ParseApiASTInfo(apiFile, iface, pkg, dir string) (ApiASTInfo, error) { //no
 	v := &Visitor{iface, make(map[string]ast.Node)}
 	ast.Walk(v, ap)
 
-	comments := make(map[string]string)
-	groupDocs := make(map[string]string)
+	comments = make(map[string]string)
+	groupDocs = make(map[string]string)
 	for mn, node := range v.Methods {
 		filteredComments := cmap.Filter(node).Comments()
 		if len(filteredComments) == 0 {
@@ -744,10 +593,7 @@ func ParseApiASTInfo(apiFile, iface, pkg, dir string) (ApiASTInfo, error) { //no
 			}
 		}
 	}
-	return ApiASTInfo{
-		Comments:      comments,
-		GroupComments: groupDocs,
-	}, nil
+	return comments, groupDocs
 }
 
 type MethodGroup struct {

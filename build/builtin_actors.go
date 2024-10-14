@@ -21,7 +21,6 @@ import (
 	actorstypes "github.com/filecoin-project/go-state-types/actors"
 
 	"github.com/filecoin-project/lotus/blockstore"
-	"github.com/filecoin-project/lotus/build/buildconstants"
 	"github.com/filecoin-project/lotus/chain/actors"
 	"github.com/filecoin-project/lotus/chain/actors/adt"
 )
@@ -40,13 +39,13 @@ func init() {
 		}
 		BundleOverrides[actorstypes.Version(av)] = path
 	}
-	if err := loadManifests(buildconstants.NetworkBundle); err != nil {
+	if err := loadManifests(NetworkBundle); err != nil {
 		panic(err)
 	}
 
 	// The following code cid existed temporarily on the calibnet testnet, as a "buggy" storage miner actor implementation.
 	// We include them in our builtin bundle, but intentionally omit from metadata.
-	if buildconstants.NetworkBundle == "calibrationnet" {
+	if NetworkBundle == "calibrationnet" {
 		actors.AddActorMeta("storageminer", cid.MustParse("bafk2bzacecnh2ouohmonvebq7uughh4h3ppmg4cjsk74dzxlbbtlcij4xbzxq"), actorstypes.Version12)
 		actors.AddActorMeta("storageminer", cid.MustParse("bafk2bzaced7emkbbnrewv5uvrokxpf5tlm4jslu2jsv77ofw2yqdglg657uie"), actorstypes.Version12)
 		actors.AddActorMeta("verifiedregistry", cid.MustParse("bafk2bzacednskl3bykz5qpo54z2j2p4q44t5of4ktd6vs6ymmg2zebsbxazkm"), actorstypes.Version13)
@@ -55,13 +54,13 @@ func init() {
 
 // UseNetworkBundle switches to a different network bundle, by name.
 func UseNetworkBundle(netw string) error {
-	if buildconstants.NetworkBundle == netw {
+	if NetworkBundle == netw {
 		return nil
 	}
 	if err := loadManifests(netw); err != nil {
 		return err
 	}
-	buildconstants.NetworkBundle = netw
+	NetworkBundle = netw
 	return nil
 }
 

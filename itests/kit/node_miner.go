@@ -36,7 +36,9 @@ const (
 	SSealing
 	SSectorStorage
 
-	MinerSubsystems = 0
+	SHarmony
+
+	MinerSubsystems = iota
 )
 
 func (ms MinerSubsystem) Add(single MinerSubsystem) MinerSubsystem {
@@ -223,7 +225,7 @@ func (tm *TestMiner) SectorsListNonGenesis(ctx context.Context) ([]abi.SectorNum
 	return l[tm.PresealSectors:], nil
 }
 
-// SchedInfo comes from https://github.com/filecoin-project/lotus/blob/8ba4355cabd25e5f65261aaa561ff676321ffbd8/storage/sealer/manager.go#L1226
+// comes from https://github.com/filecoin-project/lotus/blob/8ba4355cabd25e5f65261aaa561ff676321ffbd8/storage/sealer/manager.go#L1226
 // todo: have this defined in one place
 type SchedInfo struct {
 	CallToWork   struct{}

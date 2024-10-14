@@ -14,7 +14,7 @@ import (
 	"github.com/filecoin-project/go-state-types/builtin/v8/paych"
 
 	lapi "github.com/filecoin-project/lotus/api"
-	"github.com/filecoin-project/lotus/build/buildconstants"
+	"github.com/filecoin-project/lotus/build"
 	lpaych "github.com/filecoin-project/lotus/chain/actors/builtin/paych"
 	"github.com/filecoin-project/lotus/chain/types"
 	"github.com/filecoin-project/lotus/paychmgr"
@@ -273,7 +273,7 @@ var paychSettleCmd = &cli.Command{
 			return err
 		}
 
-		mwait, err := api.StateWaitMsg(ctx, mcid, buildconstants.MessageConfidence)
+		mwait, err := api.StateWaitMsg(ctx, mcid, build.MessageConfidence)
 		if err != nil {
 			return nil
 		}
@@ -313,7 +313,7 @@ var paychCloseCmd = &cli.Command{
 			return err
 		}
 
-		mwait, err := api.StateWaitMsg(ctx, mcid, buildconstants.MessageConfidence)
+		mwait, err := api.StateWaitMsg(ctx, mcid, build.MessageConfidence)
 		if err != nil {
 			return nil
 		}
@@ -624,7 +624,7 @@ var paychVoucherSubmitCmd = &cli.Command{
 			return err
 		}
 
-		mwait, err := api.StateWaitMsg(ctx, mcid, buildconstants.MessageConfidence)
+		mwait, err := api.StateWaitMsg(ctx, mcid, build.MessageConfidence)
 		if err != nil {
 			return err
 		}

@@ -7,8 +7,7 @@ import (
 	"github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/go-state-types/abi"
 	actorstypes "github.com/filecoin-project/go-state-types/actors"
-	builtin15 "github.com/filecoin-project/go-state-types/builtin"
-	verifregtypes12 "github.com/filecoin-project/go-state-types/builtin/v12/verifreg"
+	builtin14 "github.com/filecoin-project/go-state-types/builtin"
 	verifregtypes "github.com/filecoin-project/go-state-types/builtin/v9/verifreg"
 	"github.com/filecoin-project/go-state-types/cbor"
 	"github.com/filecoin-project/go-state-types/manifest"
@@ -26,8 +25,8 @@ import (
 )
 
 var (
-	Address = builtin15.VerifiedRegistryActorAddr
-	Methods = builtin15.MethodsVerifiedRegistry
+	Address = builtin14.VerifiedRegistryActorAddr
+	Methods = builtin14.MethodsVerifiedRegistry
 )
 
 func Load(store adt.Store, act *types.Actor) (State, error) {
@@ -58,9 +57,6 @@ func Load(store adt.Store, act *types.Actor) (State, error) {
 
 		case actorstypes.Version14:
 			return load14(store, act.Head)
-
-		case actorstypes.Version15:
-			return load15(store, act.Head)
 
 		}
 	}
@@ -138,9 +134,6 @@ func MakeState(store adt.Store, av actorstypes.Version, rootKeyAddress address.A
 	case actorstypes.Version14:
 		return make14(store, rootKeyAddress)
 
-	case actorstypes.Version15:
-		return make15(store, rootKeyAddress)
-
 	}
 	return nil, xerrors.Errorf("unknown actor version %d", av)
 }
@@ -184,25 +177,12 @@ func AllCodes() []cid.Cid {
 		(&state12{}).Code(),
 		(&state13{}).Code(),
 		(&state14{}).Code(),
-		(&state15{}).Code(),
 	}
 }
 
-type (
-	Allocation                     = verifregtypes.Allocation
-	AllocationId                   = verifregtypes.AllocationId
-	Claim                          = verifregtypes.Claim
-	ClaimId                        = verifregtypes.ClaimId
-	AllocationRequest              = verifregtypes12.AllocationRequest
-	AllocationRequests             = verifregtypes12.AllocationRequests
-	RemoveExpiredAllocationsParams = verifregtypes12.RemoveExpiredAllocationsParams
-	AddVerifierParams              = verifregtypes12.AddVerifierParams
-	AddVerifiedClientParams        = verifregtypes12.AddVerifiedClientParams
-)
+type Allocation = verifregtypes.Allocation
+type AllocationId = verifregtypes.AllocationId
+type Claim = verifregtypes.Claim
+type ClaimId = verifregtypes.ClaimId
 
-const (
-	NoAllocationID                      = verifregtypes.NoAllocationID
-	MinimumVerifiedAllocationTerm       = verifregtypes12.MinimumVerifiedAllocationTerm
-	MaximumVerifiedAllocationTerm       = verifregtypes12.MaximumVerifiedAllocationTerm
-	MaximumVerifiedAllocationExpiration = verifregtypes12.MaximumVerifiedAllocationExpiration
-)
+const NoAllocationID = verifregtypes.NoAllocationID

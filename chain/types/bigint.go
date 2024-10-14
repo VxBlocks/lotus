@@ -6,12 +6,12 @@ import (
 
 	big2 "github.com/filecoin-project/go-state-types/big"
 
-	"github.com/filecoin-project/lotus/build/buildconstants"
+	"github.com/filecoin-project/lotus/build"
 )
 
 const BigIntMaxSerializedLen = 128 // is this big enough? or too big?
 
-var TotalFilecoinInt = FromFil(buildconstants.FilBase)
+var TotalFilecoinInt = FromFil(build.FilBase)
 
 var EmptyInt = BigInt{}
 
@@ -22,7 +22,7 @@ func NewInt(i uint64) BigInt {
 }
 
 func FromFil(i uint64) BigInt {
-	return BigMul(NewInt(i), NewInt(buildconstants.FilecoinPrecision))
+	return BigMul(NewInt(i), NewInt(build.FilecoinPrecision))
 }
 
 func BigFromBytes(b []byte) BigInt {

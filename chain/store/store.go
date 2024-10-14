@@ -30,9 +30,8 @@ import (
 
 	"github.com/filecoin-project/lotus/api"
 	bstore "github.com/filecoin-project/lotus/blockstore"
-	"github.com/filecoin-project/lotus/build/buildconstants"
+	"github.com/filecoin-project/lotus/build"
 	"github.com/filecoin-project/lotus/chain/actors/adt"
-	"github.com/filecoin-project/lotus/chain/actors/policy"
 	"github.com/filecoin-project/lotus/chain/types"
 	"github.com/filecoin-project/lotus/journal"
 	"github.com/filecoin-project/lotus/metrics"
@@ -522,7 +521,7 @@ func (cs *ChainStore) exceedsForkLength(ctx context.Context, synced, external *t
 	// `forkLength`: number of tipsets we need to walk back from the our `synced`
 	// chain to the common ancestor with the new `external` head in order to
 	// adopt the fork.
-	for forkLength := 0; forkLength < int(policy.ChainFinality); forkLength++ {
+	for forkLength := 0; forkLength < int(build.ForkLengthThreshold); forkLength++ {
 		// First walk back as many tipsets in the external chain to match the
 		// `synced` height to compare them. If we go past the `synced` height
 		// the subsequent match will fail but it will still be useful to get
@@ -811,7 +810,7 @@ func (cs *ChainStore) SetCheckpoint(ctx context.Context, ts *types.TipSet) error
 	defer cs.heaviestLk.Unlock()
 
 	// Otherwise, this operation could get _very_ expensive.
-	if cs.heaviest.Height()-ts.Height() > policy.ChainFinality {
+	if cs.heaviest.Height()-ts.Height() > build.ForkLengthThreshold {
 		return xerrors.Errorf("cannot set a checkpoint before the fork threshold")
 	}
 
@@ -1019,7 +1018,7 @@ func (cs *ChainStore) AddToTipSetTracker(ctx context.Context, b *types.BlockHead
 	// Seems good enough to me
 
 	for height := range cs.tipsets {
-		if height < b.Height-policy.ChainFinality {
+		if height < b.Height-build.Finality {
 			delete(cs.tipsets, height)
 		}
 		break
@@ -1032,7 +1031,7 @@ func (cs *ChainStore) AddToTipSetTracker(ctx context.Context, b *types.BlockHead
 
 // PersistTipsets writes the provided blocks and the TipSetKey objects to the blockstore
 func (cs *ChainStore) PersistTipsets(ctx context.Context, tipsets []*types.TipSet) error {
-	toPersist := make([]*types.BlockHeader, 0, len(tipsets)*int(buildconstants.BlocksPerEpoch))
+	toPersist := make([]*types.BlockHeader, 0, len(tipsets)*int(build.BlocksPerEpoch))
 	tsBlks := make([]block.Block, 0, len(tipsets))
 	for _, ts := range tipsets {
 		toPersist = append(toPersist, ts.Blocks()...)
@@ -1344,10 +1343,6 @@ func (cs *ChainStore) GetTipSetFromKey(ctx context.Context, tsk types.TipSetKey)
 
 func (cs *ChainStore) GetLatestBeaconEntry(ctx context.Context, ts *types.TipSet) (*types.BeaconEntry, error) {
 	cur := ts
-
-	// Search for a beacon entry, in normal operation one should be in the requested tipset, but for
-	// devnets where the blocktime is faster than the beacon period we may need to search back a bit
-	// to find a tipset with a beacon entry.
 	for i := 0; i < 20; i++ {
 		cbe := cur.Blocks()[0].BeaconEntries
 		if len(cbe) > 0 {

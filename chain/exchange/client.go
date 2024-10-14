@@ -3,7 +3,6 @@ package exchange
 import (
 	"bufio"
 	"context"
-	"errors"
 	"fmt"
 	"io"
 	"math/rand"
@@ -120,7 +119,7 @@ func (c *client) doRequest(
 		// Send request, read response.
 		res, err := c.sendRequestToPeer(ctx, peer, req)
 		if err != nil {
-			if !errors.Is(err, network.ErrNoConn) {
+			if !xerrors.Is(err, network.ErrNoConn) {
 				log.Warnf("could not send request to peer %s: %s",
 					peer.String(), err)
 			}

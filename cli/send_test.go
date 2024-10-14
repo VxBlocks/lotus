@@ -59,17 +59,16 @@ func TestSendCLI(t *testing.T) {
 
 		gomock.InOrder(
 			mockSrvcs.EXPECT().MessageForSend(gomock.Any(), SendParams{
-				From: mustAddr(address.NewIDAddress(1)),
-				To:   mustAddr(address.NewIDAddress(1)),
-				Val:  oneFil,
+				To:  mustAddr(address.NewIDAddress(1)),
+				Val: oneFil,
 			}).Return(arbtProto, nil),
 			mockSrvcs.EXPECT().PublishMessage(gomock.Any(), arbtProto, false).
 				Return(sigMsg, nil, nil),
 			mockSrvcs.EXPECT().Close(),
 		)
-		err := app.Run([]string{"lotus", "send", "--from", "t01", "t01", "1"})
+		err := app.Run([]string{"lotus", "send", "t01", "1"})
 		require.NoError(t, err)
-		require.Contains(t, buf.String(), sigMsg.Cid().String()+"\n")
+		require.EqualValues(t, sigMsg.Cid().String()+"\n", buf.String())
 	})
 }
 
@@ -113,6 +112,6 @@ func TestSendEthereum(t *testing.T) {
 		)
 		err = app.Run([]string{"lotus", "send", "--from-eth-addr", testEthAddr.String(), "--params-hex", "01020304", "f01", "1"})
 		require.NoError(t, err)
-		require.Contains(t, buf.String(), sigMsg.Cid().String()+"\n")
+		require.EqualValues(t, sigMsg.Cid().String()+"\n", buf.String())
 	})
 }

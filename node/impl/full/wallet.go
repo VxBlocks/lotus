@@ -2,7 +2,6 @@ package full
 
 import (
 	"context"
-	"errors"
 
 	"go.uber.org/fx"
 	"golang.org/x/xerrors"
@@ -29,7 +28,7 @@ type WalletAPI struct {
 
 func (a *WalletAPI) WalletBalance(ctx context.Context, addr address.Address) (types.BigInt, error) {
 	act, err := a.StateManagerAPI.LoadActorTsk(ctx, addr, types.EmptyTSK)
-	if errors.Is(err, types.ErrActorNotFound) {
+	if xerrors.Is(err, types.ErrActorNotFound) {
 		return big.Zero(), nil
 	} else if err != nil {
 		return big.Zero(), err

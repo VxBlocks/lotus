@@ -149,7 +149,7 @@ func (bs *AutobatchBlockstore) doFlush(ctx context.Context, retryOnly bool) erro
 	return bs.flushErr
 }
 
-// Flush caller must NOT hold stateLock
+// caller must NOT hold stateLock
 func (bs *AutobatchBlockstore) Flush(ctx context.Context) error {
 	return bs.doFlush(ctx, false)
 }

@@ -7,7 +7,7 @@ import (
 
 	"github.com/filecoin-project/go-state-types/abi"
 
-	"github.com/filecoin-project/lotus/build/buildconstants"
+	"github.com/filecoin-project/lotus/build"
 )
 
 func TestProtocolCodenames(t *testing.T) {
@@ -16,11 +16,11 @@ func TestProtocolCodenames(t *testing.T) {
 		t.Fatal("expected genesis codename")
 	}
 
-	if height := buildconstants.UpgradeBreezeHeight + 1; GetProtocolCodename(height) != "breeze" {
+	if height := abi.ChainEpoch(build.UpgradeBreezeHeight + 1); GetProtocolCodename(height) != "breeze" {
 		t.Fatal("expected breeze codename")
 	}
 
-	if height := buildconstants.UpgradeAssemblyHeight + 1; GetProtocolCodename(height) != "actorsv2" {
+	if height := build.UpgradeAssemblyHeight + 1; GetProtocolCodename(abi.ChainEpoch(height)) != "actorsv2" {
 		t.Fatal("expected actorsv2 codename")
 	}
 

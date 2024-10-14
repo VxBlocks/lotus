@@ -2,7 +2,6 @@ package lp2p
 
 import (
 	"crypto/rand"
-	"errors"
 	"time"
 
 	logging "github.com/ipfs/go-log/v2"
@@ -36,7 +35,7 @@ func PrivKey(ks types.KeyStore) (crypto.PrivKey, error) {
 	if err == nil {
 		return crypto.UnmarshalPrivateKey(k.PrivateKey)
 	}
-	if !errors.Is(err, types.ErrKeyInfoNotFound) {
+	if !xerrors.Is(err, types.ErrKeyInfoNotFound) {
 		return nil, err
 	}
 	pk, err := genLibp2pKey()

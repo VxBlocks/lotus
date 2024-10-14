@@ -20,6 +20,8 @@ import (
 	"github.com/filecoin-project/lotus/storage/sealer/storiface"
 )
 
+//go:generate go run github.com/golang/mock/mockgen -destination=mocks/statemachine.go -package=mocks . Context
+
 // Context is a go-statemachine context
 type Context interface {
 	Context() context.Context
@@ -239,7 +241,7 @@ func (sp *SafeSectorPiece) DealInfo() UniversalPieceInfo {
 	return sp.real.DealInfo
 }
 
-// UnmarshalCBOR is a cbor passthrough
+// cbor passthrough
 func (sp *SafeSectorPiece) UnmarshalCBOR(r io.Reader) (err error) {
 	return sp.real.UnmarshalCBOR(r)
 }
@@ -248,7 +250,7 @@ func (sp *SafeSectorPiece) MarshalCBOR(w io.Writer) error {
 	return sp.real.MarshalCBOR(w)
 }
 
-// UnmarshalJSON is a json passthrough
+// json passthrough
 func (sp *SafeSectorPiece) UnmarshalJSON(b []byte) error {
 	return json.Unmarshal(b, &sp.real)
 }

@@ -23,6 +23,12 @@ import (
 	"github.com/filecoin-project/lotus/storage/sealer/storiface"
 )
 
+type SealSerialization uint8
+
+const (
+	SerializationUnixfs0 SealSerialization = 'u'
+)
+
 var dsPrefix = datastore.NewKey("/sealedblocks")
 
 var ErrNotFound = errors.New("not found")

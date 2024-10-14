@@ -146,21 +146,17 @@ func TestGetActorEventsRaw(t *testing.T) {
 	minerAddr, err := address.NewIDAddress(uint64(rng.Int63()))
 	req.NoError(err)
 
-	c := mkCid(t, "c")
-	tskey := types.NewTipSetKey(c)
-	tsKeyCid, err := tskey.Cid()
-	req.NoError(err)
-
 	testCases := []struct {
-		name                 string
-		filter               *types.ActorEventFilter
-		currentHeight        int64
-		installMinHeight     int64
-		installMaxHeight     int64
-		installTipSetKey     cid.Cid
-		installAddresses     []address.Address
-		installKeysWithCodec map[string][]types.ActorEventBlock
-		expectErr            string
+		name                   string
+		filter                 *types.ActorEventFilter
+		currentHeight          int64
+		installMinHeight       int64
+		installMaxHeight       int64
+		installTipSetKey       cid.Cid
+		installAddresses       []address.Address
+		installKeysWithCodec   map[string][]types.ActorEventBlock
+		installExcludeReverted bool
+		expectErr              string
 	}{
 		{
 			name:             "nil filter",
@@ -182,15 +178,6 @@ func TestGetActorEventsRaw(t *testing.T) {
 			},
 			installMinHeight: 0,
 			installMaxHeight: maxFilterHeightRange,
-		},
-		{
-			name: "query for tipset key",
-			filter: &types.ActorEventFilter{
-				TipSetKey: &tskey,
-			},
-			installTipSetKey: tsKeyCid,
-			installMinHeight: 0,
-			installMaxHeight: 0,
 		},
 		{
 			name: "from, no to height",
@@ -235,7 +222,7 @@ func TestGetActorEventsRaw(t *testing.T) {
 			filter := newMockFilter(ctx, t, rng, collectedEvents)
 
 			if tc.expectErr == "" {
-				efm.expectFill(abi.ChainEpoch(tc.installMinHeight), abi.ChainEpoch(tc.installMaxHeight), tc.installTipSetKey, tc.installAddresses, tc.installKeysWithCodec, filter)
+				efm.expectInstall(abi.ChainEpoch(tc.installMinHeight), abi.ChainEpoch(tc.installMaxHeight), tc.installTipSetKey, tc.installAddresses, tc.installKeysWithCodec, tc.installExcludeReverted, filter)
 			}
 
 			ts, err := types.NewTipSet([]*types.BlockHeader{newBlockHeader(minerAddr, tc.currentHeight)})
@@ -252,6 +239,7 @@ func TestGetActorEventsRaw(t *testing.T) {
 				req.NoError(err)
 				expectedEvents := collectedToActorEvents(collectedEvents)
 				req.Equal(expectedEvents, gotEvents)
+				efm.requireRemoved(filter.ID())
 			}
 		})
 	}
@@ -300,7 +288,7 @@ func TestSubscribeActorEventsRaw(t *testing.T) {
 			allEvents := makeCollectedEvents(t, rng, filterStartHeight, eventsPerEpoch, finishHeight)
 			historicalEvents := allEvents[0 : (currentHeight-filterStartHeight)*eventsPerEpoch]
 			mockFilter := newMockFilter(ctx, t, rng, historicalEvents)
-			mockFilterManager.expectInstall(abi.ChainEpoch(0), abi.ChainEpoch(tc.endEpoch), cid.Undef, nil, nil, mockFilter)
+			mockFilterManager.expectInstall(abi.ChainEpoch(0), abi.ChainEpoch(tc.endEpoch), cid.Undef, nil, nil, false, mockFilter)
 
 			ts, err := types.NewTipSet([]*types.BlockHeader{newBlockHeader(minerAddr, currentHeight)})
 			req.NoError(err)
@@ -461,7 +449,7 @@ func TestSubscribeActorEventsRaw_OnlyHistorical(t *testing.T) {
 			mockFilterManager := newMockEventFilterManager(t)
 			allEvents := makeCollectedEvents(t, rng, filterStartHeight, eventsPerEpoch, currentHeight)
 			mockFilter := newMockFilter(ctx, t, rng, allEvents)
-			mockFilterManager.expectInstall(abi.ChainEpoch(0), abi.ChainEpoch(currentHeight), cid.Undef, nil, nil, mockFilter)
+			mockFilterManager.expectInstall(abi.ChainEpoch(0), abi.ChainEpoch(currentHeight), cid.Undef, nil, nil, false, mockFilter)
 
 			ts, err := types.NewTipSet([]*types.BlockHeader{newBlockHeader(minerAddr, currentHeight)})
 			req.NoError(err)
@@ -631,37 +619,19 @@ type filterManagerExpectation struct {
 	tipsetCid            cid.Cid
 	addresses            []address.Address
 	keysWithCodec        map[string][]types.ActorEventBlock
+	excludeReverted      bool
 	returnFilter         filter.EventFilter
 }
 
 type mockEventFilterManager struct {
-	t                   *testing.T
-	installExpectations []filterManagerExpectation
-	fillExpectations    []filterManagerExpectation
-	removed             []types.FilterID
-	lk                  sync.Mutex
+	t            *testing.T
+	expectations []filterManagerExpectation
+	removed      []types.FilterID
+	lk           sync.Mutex
 }
 
 func newMockEventFilterManager(t *testing.T) *mockEventFilterManager {
 	return &mockEventFilterManager{t: t}
-}
-
-func (m *mockEventFilterManager) expectFill(
-	minHeight, maxHeight abi.ChainEpoch,
-	tipsetCid cid.Cid,
-	addresses []address.Address,
-	keysWithCodec map[string][]types.ActorEventBlock,
-	returnFilter filter.EventFilter) {
-
-	m.t.Helper()
-	m.fillExpectations = append(m.fillExpectations, filterManagerExpectation{
-		minHeight:     minHeight,
-		maxHeight:     maxHeight,
-		tipsetCid:     tipsetCid,
-		addresses:     addresses,
-		keysWithCodec: keysWithCodec,
-		returnFilter:  returnFilter,
-	})
 }
 
 func (m *mockEventFilterManager) expectInstall(
@@ -669,17 +639,26 @@ func (m *mockEventFilterManager) expectInstall(
 	tipsetCid cid.Cid,
 	addresses []address.Address,
 	keysWithCodec map[string][]types.ActorEventBlock,
+	excludeReverted bool,
 	returnFilter filter.EventFilter) {
 
 	m.t.Helper()
-	m.installExpectations = append(m.installExpectations, filterManagerExpectation{
-		minHeight:     minHeight,
-		maxHeight:     maxHeight,
-		tipsetCid:     tipsetCid,
-		addresses:     addresses,
-		keysWithCodec: keysWithCodec,
-		returnFilter:  returnFilter,
+	m.expectations = append(m.expectations, filterManagerExpectation{
+		minHeight:       minHeight,
+		maxHeight:       maxHeight,
+		tipsetCid:       tipsetCid,
+		addresses:       addresses,
+		keysWithCodec:   keysWithCodec,
+		excludeReverted: excludeReverted,
+		returnFilter:    returnFilter,
 	})
+}
+
+func (m *mockEventFilterManager) requireRemoved(id types.FilterID) {
+	m.t.Helper()
+	m.lk.Lock()
+	defer m.lk.Unlock()
+	require.Contains(m.t, m.removed, id)
 }
 
 func (m *mockEventFilterManager) requireRemovedEventually(id types.FilterID, timeout time.Duration) {
@@ -695,43 +674,25 @@ func (m *mockEventFilterManager) requireRemovedEventually(id types.FilterID, tim
 	}, timeout, 10*time.Millisecond, "filter %x not removed", id)
 }
 
-func (m *mockEventFilterManager) Fill(
-	_ context.Context,
-	minHeight, maxHeight abi.ChainEpoch,
-	tipsetCid cid.Cid,
-	addresses []address.Address,
-	keysWithCodec map[string][]types.ActorEventBlock,
-) (filter.EventFilter, error) {
-
-	require.True(m.t, len(m.fillExpectations) > 0, "unexpected call to Fill")
-	exp := m.fillExpectations[0]
-	m.fillExpectations = m.fillExpectations[1:]
-	// check the expectation matches the call then return the attached filter
-	require.Equal(m.t, exp.minHeight, minHeight)
-	require.Equal(m.t, exp.maxHeight, maxHeight)
-	require.Equal(m.t, exp.tipsetCid, tipsetCid)
-	require.Equal(m.t, exp.addresses, addresses)
-	require.Equal(m.t, exp.keysWithCodec, keysWithCodec)
-	return exp.returnFilter, nil
-}
-
 func (m *mockEventFilterManager) Install(
 	_ context.Context,
 	minHeight, maxHeight abi.ChainEpoch,
 	tipsetCid cid.Cid,
 	addresses []address.Address,
 	keysWithCodec map[string][]types.ActorEventBlock,
+	excludeReverted bool,
 ) (filter.EventFilter, error) {
 
-	require.True(m.t, len(m.installExpectations) > 0, "unexpected call to Install")
-	exp := m.installExpectations[0]
-	m.installExpectations = m.installExpectations[1:]
+	require.True(m.t, len(m.expectations) > 0, "unexpected call to Install")
+	exp := m.expectations[0]
+	m.expectations = m.expectations[1:]
 	// check the expectation matches the call then return the attached filter
 	require.Equal(m.t, exp.minHeight, minHeight)
 	require.Equal(m.t, exp.maxHeight, maxHeight)
 	require.Equal(m.t, exp.tipsetCid, tipsetCid)
 	require.Equal(m.t, exp.addresses, addresses)
 	require.Equal(m.t, exp.keysWithCodec, keysWithCodec)
+	require.Equal(m.t, exp.excludeReverted, excludeReverted)
 	return exp.returnFilter, nil
 }
 
