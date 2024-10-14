@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"errors"
+	"github.com/ipfs/go-cid"
 	"io"
 	"os"
 	"strings"

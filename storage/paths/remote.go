@@ -5,6 +5,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/hashicorp/go-multierror"
+	"github.com/ipfs/go-cid"
 	"io"
 	"math/bits"
 	"net/http"

@@ -175,6 +175,12 @@ lotus-bench:
 .PHONY: lotus-bench
 BINS+=lotus-bench
 
+lotus-car-storage:
+	rm -f lotus-car-storage
+	$(GOCC) build $(GOFLAGS) -o lotus-car-storage ./cmd/lotus-car-storage
+.PHONY: lotus-car-storage
+BINS+=lotus-car-storage
+
 lotus-stats:
 	rm -f lotus-stats
 	$(GOCC) build $(GOFLAGS) -o lotus-stats ./cmd/lotus-stats
